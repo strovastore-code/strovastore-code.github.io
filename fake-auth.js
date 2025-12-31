@@ -741,28 +741,43 @@
         }
       });
       try{ mo.observe(document.documentElement || document.body, { childList:true, subtree:true }); }catch(e){}
-      // also poll occasionally as a fallback - MORE AGGRESSIVE
-      setInterval(()=>{ 
-        removeFloatingBtn(); 
-        
-        // Remove any debug panels
-        const debugPanel = document.getElementById('fake-auth-debug');
-        if (debugPanel) debugPanel.remove();
-        
-        // Aggressively hide/remove any div containing "Owner check" text
+      
+      // AGGRESSIVE DEBUG DIV REMOVAL - Remove "Owner check" divs
+      function removeOwnerCheckDiv() {
         try {
           const allDivs = document.querySelectorAll('div');
           allDivs.forEach(div => {
             const text = div.textContent || '';
             if (text.includes('Owner check')) {
-              // Just completely remove the element
               if (div.parentNode) {
                 div.parentNode.removeChild(div);
               }
             }
           });
         } catch(e) {}
-      }, 100);
+      }
+      
+      // Run immediately
+      removeOwnerCheckDiv();
+      
+      // Use MutationObserver to catch new divs being added
+      const debugObserver = new MutationObserver(() => {
+        removeOwnerCheckDiv();
+      });
+      try {
+        debugObserver.observe(document.documentElement || document.body, { 
+          childList: true, 
+          subtree: true 
+        });
+      } catch(e) {}
+      
+      // Also poll as backup
+      setInterval(()=>{ 
+        removeFloatingBtn(); 
+        const debugPanel = document.getElementById('fake-auth-debug');
+        if (debugPanel) debugPanel.remove();
+        removeOwnerCheckDiv();
+      }, 50);
     }catch(e){}
   }
 
@@ -1181,9 +1196,17 @@
 
   function initUI(){
     try{ 
-      // Remove any debug panels
+      // Remove any debug panels immediately
       const debugPanel = document.getElementById('fake-auth-debug');
       if (debugPanel) debugPanel.remove();
+      
+      // Remove Owner check divs immediately
+      const allDivs = document.querySelectorAll('div');
+      allDivs.forEach(div => {
+        if ((div.textContent || '').includes('Owner check')) {
+          if (div.parentNode) div.parentNode.removeChild(div);
+        }
+      });
       
       createStyle(); removeFloatingBtn(); renderButton(); replaceExistingSignIns(); watchAndRemoveFloating(); observeLoginButton(); addAdminLink(); 
     }catch(e){}
