@@ -1,4 +1,5 @@
 ﻿// Fake auth shim for local mirror: adds Sign In UI and intercepts fetch
+// Version: 2025-12-30-v3 - All debug messages removed
 (function(){
   const USER_KEY = 'tricklist_user';
   const LEARNED_KEY = 'tricklist_learned';
