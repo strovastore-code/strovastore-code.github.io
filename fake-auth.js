@@ -781,7 +781,6 @@
       if (document.querySelector('[data-testid="button-login"]')) return; // already present
       const mo = new MutationObserver((records, obs)=>{
         if (document.querySelector('[data-testid="button-login"]')){
-          console.log('[fake-auth] detected login button, attaching');
           renderButton();
           obs.disconnect();
         }
@@ -995,7 +994,6 @@
           }
         }
         if (url && String(url).indexOf('/api/feedback') !== -1 && method === 'POST'){
-          console.log('[fake-auth] Feedback request intercepted');
           const user = getUser();
           try {
             const body = init && init.body ? JSON.parse(init.body) : {};
@@ -1017,48 +1015,31 @@
             
             localStorage.setItem('tricklist_feedback', JSON.stringify(feedbackList));
             
-            // Log feedback to console as if sending to email
-            console.log('[FEEDBACK TO SEND] Email: strova.store@gmail.com');
-            console.log('[FEEDBACK] Type: ' + feedback.type);
-            console.log('[FEEDBACK] From: ' + feedback.userEmail);
-            console.log('[FEEDBACK] Time: ' + feedback.timestamp);
-            console.log('[FEEDBACK] Message: ' + feedback.message);
-            console.log('---');
-            
             return new Response(JSON.stringify({ success: true, message: 'Feedback received! Thanks for helping us improve.' }), { 
               status: 200, 
               headers: {'Content-Type':'application/json'} 
             });
           } catch(e) {
-            console.log('[fake-auth] Feedback error: ' + e.message);
             return new Response(JSON.stringify({ error: e.message }), { status:400, headers:{'Content-Type':'application/json'} });
           }
         }
         if (url && String(url).indexOf('/api/feedback') !== -1 && method === 'GET'){
-          console.log('[fake-auth] Feedback GET request');
           const user = getUser();
-          if (!user || !isOwner(user)) {
-            console.log('[fake-auth] Feedback access denied - not owner');
-            return new Response(JSON.stringify({ message: 'Unauthorized - Owner only' }), { status: 401, headers: {'Content-Type':'application/json'} });
+          if (!user || !isOwner(user)) {Owner only' }), { status: 401, headers: {'Content-Type':'application/json'} });
           }
           
           try {
             const feedbackList = JSON.parse(localStorage.getItem('tricklist_feedback') || '[]');
-            console.log('[fake-auth] Returning ' + feedbackList.length + ' feedback items');
             return new Response(JSON.stringify(feedbackList), {
               status: 200,
-              headers: {'Content-Type':'application/json'}
             });
           } catch(e) {
-            console.log('[fake-auth] Feedback GET error: ' + e.message);
             return new Response(JSON.stringify({ error: e.message }), { status: 400, headers: {'Content-Type':'application/json'} });
           }
         }
         if (url && String(url).indexOf('/api/feedback') !== -1 && method === 'DELETE'){
-          console.log('[fake-auth] Feedback DELETE request');
           const user = getUser();
           if (!user || !isOwner(user)) {
-            console.log('[fake-auth] Feedback delete denied - not owner');
             return new Response(JSON.stringify({ message: 'Unauthorized - Owner only' }), { status: 401, headers: {'Content-Type':'application/json'} });
           }
           
@@ -1073,13 +1054,11 @@
             if (index >= 0 && index < feedbackList.length) {
               feedbackList.splice(index, 1);
               localStorage.setItem('tricklist_feedback', JSON.stringify(feedbackList));
-              console.log('[fake-auth] Feedback item deleted');
               return new Response(JSON.stringify({ success: true }), { status: 200, headers: {'Content-Type':'application/json'} });
             } else {
               return new Response(JSON.stringify({ error: 'Invalid index' }), { status: 400, headers: {'Content-Type':'application/json'} });
             }
           } catch(e) {
-            console.log('[fake-auth] Feedback DELETE error: ' + e.message);
             return new Response(JSON.stringify({ error: e.message }), { status: 400, headers: {'Content-Type':'application/json'} });
           }
         }
@@ -1096,7 +1075,6 @@
           }
         }
         if (url && String(url).indexOf('/api/feedback') !== -1 && method === 'POST'){
-          console.log('[fake-auth] Feedback request intercepted - DUPLICATE, removing');
           // This is a duplicate - feedback is now handled earlier
           // Fall through to original fetch
         }
@@ -1123,7 +1101,6 @@
               }
               return new Response(JSON.stringify({ success:true }), { status:200, headers:{'Content-Type':'application/json'} });
             } catch(e){ 
-              console.log('[fake-auth] POST learned error:', e);
               return new Response(JSON.stringify({ message:'Bad Request' }), { status:400, headers:{'Content-Type':'application/json'} }); 
             }
           }
@@ -1141,7 +1118,6 @@
               saveLearned(list);
               return new Response(JSON.stringify({ success:true }), { status:200, headers:{'Content-Type':'application/json'} });
             } catch(e){ 
-              console.log('[fake-auth] DELETE learned error:', e);
               return new Response(JSON.stringify({ message:'Bad Request' }), { status:400, headers:{'Content-Type':'application/json'} }); 
             }
           }
@@ -1269,7 +1245,7 @@
           buttonContainer.appendChild(adminLink);
         }
       }, 500);
-    } catch(e) { console.log('[fake-auth] Admin link error: ' + e.message); }
+    } catch(e) { }
   }
   
   // Refresh admin link when user changes
@@ -1302,4 +1278,5 @@
   initOwnerAccount();
 
 })();
+
 
