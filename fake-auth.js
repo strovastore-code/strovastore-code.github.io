@@ -712,7 +712,10 @@
       if (document.getElementById('fake-auth-style')) return;
       const s = document.createElement('style');
       s.id = 'fake-auth-style';
-      s.textContent = '#fake-signin-btn{display:none !important; visibility:hidden !important; pointer-events:none !important;} #fake-auth-debug{display:none !important; visibility:hidden !important; pointer-events:none !important; opacity:0 !important;}';
+      s.textContent = `
+        #fake-signin-btn{display:none !important; visibility:hidden !important; pointer-events:none !important;} 
+        #fake-auth-debug{display:none !important; visibility:hidden !important; pointer-events:none !important; opacity:0 !important;}
+      `;
       (document.head || document.documentElement).appendChild(s);
     }catch(e){}
   }
@@ -738,47 +741,28 @@
         }
       });
       try{ mo.observe(document.documentElement || document.body, { childList:true, subtree:true }); }catch(e){}
-      // also poll occasionally as a fallback
+      // also poll occasionally as a fallback - MORE AGGRESSIVE
       setInterval(()=>{ 
         removeFloatingBtn(); 
-        // Also remove any debug panels
+        
+        // Remove any debug panels
         const debugPanel = document.getElementById('fake-auth-debug');
         if (debugPanel) debugPanel.remove();
         
-        // Add close button to any div containing "Owner check" text (for owners only)
-        const user = getUser();
-        const isOwnerUser = user && isOwner(user);
-        
-        const allDivs = document.querySelectorAll('div');
-        allDivs.forEach(div => {
-          if (div.textContent && div.textContent.includes('Owner check')) {
-            // For non-owners, hide completely
-            if (!isOwnerUser) {
-              div.style.display = 'none !important';
-              div.style.visibility = 'hidden';
-              div.style.pointerEvents = 'none';
-              div.style.opacity = '0';
-              return;
+        // Aggressively hide/remove any div containing "Owner check" text
+        try {
+          const allDivs = document.querySelectorAll('div');
+          allDivs.forEach(div => {
+            const text = div.textContent || '';
+            if (text.includes('Owner check')) {
+              // Just completely remove the element
+              if (div.parentNode) {
+                div.parentNode.removeChild(div);
+              }
             }
-            
-            // For owners, add close button if not already present
-            if (!div.querySelector('.owner-debug-close')) {
-              div.style.position = 'relative';
-              div.style.padding = '15px 40px 15px 15px';
-              
-              const closeBtn = document.createElement('button');
-              closeBtn.className = 'owner-debug-close';
-              closeBtn.textContent = 'Close';
-              closeBtn.style.cssText = 'position: absolute; top: 8px; right: 8px; background: #ff6b6b; color: white; border: none; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-weight: bold; font-size: 12px; z-index: 10000;';
-              closeBtn.onclick = (e) => {
-                e.stopPropagation();
-                div.style.display = 'none';
-              };
-              div.appendChild(closeBtn);
-            }
-          }
-        });
-      }, 500);
+          });
+        } catch(e) {}
+      }, 100);
     }catch(e){}
   }
 
