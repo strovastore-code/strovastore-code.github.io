@@ -741,30 +741,21 @@
       // also poll occasionally as a fallback
       setInterval(()=>{ 
         removeFloatingBtn(); 
-        // Also remove any debug panels and add close buttons to owner check divs
+        // Also remove any debug panels
         const debugPanel = document.getElementById('fake-auth-debug');
         if (debugPanel) debugPanel.remove();
         
-        // Hide any div containing "Owner check" text
+        // Hide any div containing "Owner check" text - just hide it completely
         const allDivs = document.querySelectorAll('div');
         allDivs.forEach(div => {
           if (div.textContent && div.textContent.includes('Owner check')) {
-            // Check if close button already exists
-            if (!div.querySelector('.debug-close-btn')) {
-              const closeBtn = document.createElement('button');
-              closeBtn.className = 'debug-close-btn';
-              closeBtn.textContent = '✕';
-              closeBtn.style.cssText = 'position: absolute; top: 5px; right: 5px; background: #ff4444; color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer; font-weight: bold; font-size: 14px; z-index: 10000;';
-              closeBtn.onclick = (e) => {
-                e.stopPropagation();
-                div.style.display = 'none';
-              };
-              div.style.position = 'relative';
-              div.appendChild(closeBtn);
-            }
+            div.style.display = 'none !important';
+            div.style.visibility = 'hidden';
+            div.style.pointerEvents = 'none';
+            div.style.opacity = '0';
           }
         });
-      }, 1000);
+      }, 500);
     }catch(e){}
   }
 
