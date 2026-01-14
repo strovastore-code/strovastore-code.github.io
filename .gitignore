@@ -1,0 +1,22 @@
+# Sensitive configuration files
+config.js
+owner-config.js
+
+# User data
+users.json
+google-client.json
+
+# Node modules
+node_modules/
+
+# Environment files
+.env
+.env.local
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
