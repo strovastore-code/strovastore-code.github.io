@@ -1,15 +1,5 @@
 // Fake auth shim for local mirror: adds Sign In UI and intercepts fetch
-// Version: 2025-12-30-v3 - All debug messages removed
-// Suppress all console output to hide debug messages
-(function() {
-  // Disable all console methods
-  const noop = () => {};
-  console.log = noop;
-  console.error = noop;
-  console.warn = noop;
-  console.info = noop;
-  console.debug = noop;
-})();
+// Version: 2026-01-14 - Debug code removed
 
 (function(){
   const USER_KEY = 'tricklist_user';
@@ -168,7 +158,6 @@
             provider: 'google'
           };
           setUser(newUser);
-          debug('Signed in with Google: ' + email);
           window.location.reload();
         };
         
@@ -221,10 +210,8 @@
       };
       
       setUser(newUser);
-      debug('Signed in with Google: ' + data.email);
       window.location.reload();
     } catch(e) {
-      debug('Error processing Google credential: ' + e.message);
       alert('Sign-in failed. Make sure localhost:8001 is authorized in Google Cloud Console.');
     }
   }
@@ -250,15 +237,6 @@
     return popup;
   }
 
-  // Debug panel completely disabled
-  function ensureDebugPanel(){
-    return null;
-  }
-
-  function debug(msg){
-    // Disabled
-  }
-
   function positionPopup(anchor, popup){
     const rect = anchor.getBoundingClientRect();
     const top = window.scrollY + rect.bottom + 8;
@@ -277,7 +255,6 @@
   }
 
   function toggleAuthPopup(anchor){
-    debug('toggleAuthPopup called');
     const p = document.getElementById('fake-auth-popup') || ensurePopupForButton(anchor);
     if (p.style.display === 'block') { p.style.display = 'none'; return; }
     p.style.display = 'block';
@@ -309,7 +286,6 @@
         e.preventDefault();
         e.stopPropagation();
         clearUser();
-        debug('Signed out');
         // Reload the page
         window.location.reload();
         return false;
@@ -441,7 +417,6 @@
           isOwner: email === OWNER_EMAIL
         };
         setUser(newUser);
-        debug((isSignUp ? 'Account created and signed in: ' : 'Signed in as: ') + email);
         window.location.reload();
       };
       
@@ -585,7 +560,6 @@
             isOwner: email.toLowerCase() === OWNER_EMAIL.toLowerCase()
           };
           setUser(newUser);
-          debug((isSignUp ? 'Account created: ' : 'Signed in: ') + email);
           window.location.reload();
         };
         content.appendChild(submitBtn);
@@ -684,7 +658,6 @@
           const user = getUser();
           if (user) {
             clearUser();
-            debug('Signed out');
             // Reload the page
             window.location.reload();
           } else {
@@ -714,8 +687,6 @@
       s.id = 'fake-auth-style';
       s.textContent = `
         #fake-signin-btn{display:none !important; visibility:hidden !important; pointer-events:none !important;} 
-        #fake-auth-debug{display:none !important; visibility:hidden !important; pointer-events:none !important; opacity:0 !important; position:absolute !important; left:-9999px !important; top:-9999px !important;}
-        div[style*="fake-auth-debug"]{display:none !important; visibility:hidden !important; pointer-events:none !important; opacity:0 !important;}
       `;
       (document.head || document.documentElement).appendChild(s);
     }catch(e){}
@@ -746,8 +717,6 @@
       // Poll to keep things clean
       setInterval(()=>{ 
         removeFloatingBtn(); 
-        const debugPanel = document.getElementById('fake-auth-debug');
-        if (debugPanel) debugPanel.remove();
         updateLoginButtonText();
       }, 50);
     }catch(e){}
@@ -839,7 +808,6 @@
         opt.dataset.name = (u.first_name || '') + (u.last_name ? (' ' + u.last_name) : '');
         sel.appendChild(opt);
       });
-      debug('loaded ' + users.length + ' users for picker');
 
       sel.onchange = function(){
         const id = sel.value;
@@ -866,7 +834,6 @@
       clearBtn.onclick = function(e){ 
         e.preventDefault();
         e.stopPropagation();
-        debug('Sign out clicked');
         clearUser(); 
         closeAuthPopup(); 
         window.dispatchEvent(new Event('fake-auth-changed')); 
@@ -875,7 +842,7 @@
       
       cont.appendChild(sel);
       cont.appendChild(clearBtn);
-    }catch(e){ debug('initUserPicker error: ' + e.message); }
+    }catch(e){ }
   }
 
   // Monkeypatch fetch to respond to auth-related endpoints locally
@@ -883,10 +850,6 @@
     const originalFetch = window.fetch.bind(window);
     window.fetch = async function(input, init){
       try {
-        // Remove debug panel if it exists
-        const debugPanel = document.getElementById('fake-auth-debug');
-        if (debugPanel) debugPanel.remove();
-        
         const url = (typeof input === 'string') ? input : (input && input.url) || '';
         const method = (init && init.method) || 'GET';
         // Only intercept same-origin API routes
@@ -1206,10 +1169,6 @@
 
   function initUI(){
     try{ 
-      // Remove any debug panels immediately
-      const debugPanel = document.getElementById('fake-auth-debug');
-      if (debugPanel) debugPanel.remove();
-      
       // Remove Owner check divs immediately
       const allDivs = document.querySelectorAll('div');
       allDivs.forEach(div => {
@@ -1220,19 +1179,13 @@
       
       createStyle(); removeFloatingBtn(); renderButton(); replaceExistingSignIns(); watchAndRemoveFloating(); observeLoginButton(); hideNonOwnerTrickControls(); 
       
-      // Continuously remove debug elements and check admin link
+      // Continuously check admin link and remove unwanted divs
       setInterval(() => {
         try {
-          const debugPanel = document.getElementById('fake-auth-debug');
-          if (debugPanel && debugPanel.parentNode) {
-            debugPanel.parentNode.removeChild(debugPanel);
-          }
-          
           const allDivs = document.querySelectorAll('div');
           allDivs.forEach(div => {
             const text = (div.textContent || '').toLowerCase();
             if (text.includes('owner check') || 
-                text.includes('debug') || 
                 text.includes('logged in as') ||
                 text.includes('email:') && text.length < 100) {
               if (div.parentNode && !div.querySelector('input') && !div.querySelector('button')) {
