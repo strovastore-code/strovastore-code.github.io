@@ -226,7 +226,6 @@
             provider: 'google'
           };
           setUser(newUser);
-          debug('Signed in with Google: ' + email);
           window.location.reload();
         };
         
@@ -279,10 +278,8 @@
       };
       
       setUser(newUser);
-      debug('Signed in with Google: ' + data.email);
       window.location.reload();
     } catch(e) {
-      debug('Error processing Google credential: ' + e.message);
       alert('Sign-in failed. Make sure localhost:8001 is authorized in Google Cloud Console.');
     }
   }
@@ -308,16 +305,6 @@
     return popup;
   }
 
-  // Simple on-page logger for debugging inside Simple Browser
-  function ensureDebugPanel(){
-    // Debug panel completely disabled
-    return null;
-  }
-
-  function debug(msg){
-    // Debug completely disabled
-  }
-
   function positionPopup(anchor, popup){
     const rect = anchor.getBoundingClientRect();
     const top = window.scrollY + rect.bottom + 8;
@@ -336,7 +323,6 @@
   }
 
   function toggleAuthPopup(anchor){
-    debug('toggleAuthPopup called');
     const p = document.getElementById('fake-auth-popup') || ensurePopupForButton(anchor);
     if (p.style.display === 'block') { p.style.display = 'none'; return; }
     p.style.display = 'block';
@@ -368,7 +354,6 @@
         e.preventDefault();
         e.stopPropagation();
         clearUser();
-        debug('Signed out');
         // Reload the page
         window.location.reload();
         return false;
@@ -500,7 +485,6 @@
           isOwner: email === OWNER_EMAIL
         };
         setUser(newUser);
-        debug((isSignUp ? 'Account created and signed in: ' : 'Signed in as: ') + email);
         window.location.reload();
       };
       
@@ -644,7 +628,6 @@
             isOwner: email.toLowerCase() === OWNER_EMAIL.toLowerCase()
           };
           setUser(newUser);
-          debug((isSignUp ? 'Account created: ' : 'Signed in: ') + email);
           window.location.reload();
         };
         content.appendChild(submitBtn);
@@ -743,7 +726,6 @@
           const user = getUser();
           if (user) {
             clearUser();
-            debug('Signed out');
             // Reload the page
             window.location.reload();
           } else {
@@ -928,7 +910,6 @@
         opt.dataset.name = (u.first_name || '') + (u.last_name ? (' ' + u.last_name) : '');
         sel.appendChild(opt);
       });
-      debug('loaded ' + users.length + ' users for picker');
 
       sel.onchange = function(){
         const id = sel.value;
@@ -955,7 +936,6 @@
       clearBtn.onclick = function(e){ 
         e.preventDefault();
         e.stopPropagation();
-        debug('Sign out clicked');
         clearUser(); 
         closeAuthPopup(); 
         window.dispatchEvent(new Event('fake-auth-changed')); 
@@ -964,7 +944,7 @@
       
       cont.appendChild(sel);
       cont.appendChild(clearBtn);
-    }catch(e){ debug('initUserPicker error: ' + e.message); }
+    }catch(e){ }
   }
 
   // Monkeypatch fetch to respond to auth-related endpoints locally
