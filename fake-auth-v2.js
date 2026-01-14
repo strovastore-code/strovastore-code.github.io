@@ -687,8 +687,6 @@
       s.id = 'fake-auth-style';
       s.textContent = `
         #fake-signin-btn{display:none !important; visibility:hidden !important; pointer-events:none !important;} 
-        #fake-auth-debug{display:none !important; visibility:hidden !important; pointer-events:none !important; opacity:0 !important; position:absolute !important; left:-9999px !important; top:-9999px !important;}
-        div[style*="fake-auth-debug"]{display:none !important; visibility:hidden !important; pointer-events:none !important; opacity:0 !important;}
       `;
       (document.head || document.documentElement).appendChild(s);
     }catch(e){}
@@ -719,8 +717,6 @@
       // Poll to keep things clean
       setInterval(()=>{ 
         removeFloatingBtn(); 
-        const debugPanel = document.getElementById('fake-auth-debug');
-        if (debugPanel) debugPanel.remove();
         updateLoginButtonText();
       }, 50);
     }catch(e){}
@@ -854,10 +850,6 @@
     const originalFetch = window.fetch.bind(window);
     window.fetch = async function(input, init){
       try {
-        // Remove debug panel if it exists
-        const debugPanel = document.getElementById('fake-auth-debug');
-        if (debugPanel) debugPanel.remove();
-        
         const url = (typeof input === 'string') ? input : (input && input.url) || '';
         const method = (init && init.method) || 'GET';
         // Only intercept same-origin API routes
@@ -1177,10 +1169,6 @@
 
   function initUI(){
     try{ 
-      // Remove any debug panels immediately
-      const debugPanel = document.getElementById('fake-auth-debug');
-      if (debugPanel) debugPanel.remove();
-      
       // Remove Owner check divs immediately
       const allDivs = document.querySelectorAll('div');
       allDivs.forEach(div => {
@@ -1191,19 +1179,13 @@
       
       createStyle(); removeFloatingBtn(); renderButton(); replaceExistingSignIns(); watchAndRemoveFloating(); observeLoginButton(); hideNonOwnerTrickControls(); 
       
-      // Continuously remove debug elements and check admin link
+      // Continuously check admin link and remove unwanted divs
       setInterval(() => {
         try {
-          const debugPanel = document.getElementById('fake-auth-debug');
-          if (debugPanel && debugPanel.parentNode) {
-            debugPanel.parentNode.removeChild(debugPanel);
-          }
-          
           const allDivs = document.querySelectorAll('div');
           allDivs.forEach(div => {
             const text = (div.textContent || '').toLowerCase();
             if (text.includes('owner check') || 
-                text.includes('debug') || 
                 text.includes('logged in as') ||
                 text.includes('email:') && text.length < 100) {
               if (div.parentNode && !div.querySelector('input') && !div.querySelector('button')) {
