@@ -1,16 +1,5 @@
 // Fake auth shim for local mirror: adds Sign In UI and intercepts fetch
 // Version: 2025-12-30-v3 - All debug messages removed
-// Suppress all console output to hide debug messages
-(function() {
-  // Disable all console methods
-  const noop = () => {};
-  console.log = noop;
-  console.error = noop;
-  console.warn = noop;
-  console.info = noop;
-  console.debug = noop;
-})();
-
 (function(){
   const USER_KEY = 'tricklist_user';
   const LEARNED_KEY = 'tricklist_learned';
@@ -50,8 +39,77 @@
       return user;
     } catch(e){ return null }
   }
-  // Owner-only trick management UI disabled for public build
-  function addTrickManagementButtons(){ return; }
+  function setUser(u){ 
+    // Set expiration to 1 year from now
+    const expiresAt = new Date().getTime() + (365 * 24 * 60 * 60 * 1000);
+    u.expiresAt = expiresAt;
+    localStorage.setItem(USER_KEY, JSON.stringify(u));
+    
+    // Track this account as recently used
+    addToRecentAccounts(u.email);
+  }
+  
+  function addToRecentAccounts(email) {
+    try {
+      // Check if recent accounts list needs to be cleared (older than 30 days)
+      const lastClearStr = localStorage.getItem('tricklist_recent_accounts_last_clear');
+      const lastClear = lastClearStr ? parseInt(lastClearStr) : 0;
+      const now = new Date().getTime();
+      const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+      
+      let recent = [];
+      
+      // If more than 30 days have passed, clear the list
+      if (now - lastClear > thirtyDays) {
+        localStorage.setItem('tricklist_recent_accounts_last_clear', now.toString());
+        localStorage.removeItem('tricklist_recent_accounts');
+      } else {
+        const recentStr = localStorage.getItem('tricklist_recent_accounts');
+        recent = recentStr ? JSON.parse(recentStr) : [];
+      }
+      
+      // Add email if not already in list, keep unique
+      if (!recent.includes(email)) {
+        recent.push(email);
+      }
+      
+      // Keep only last 5 accounts
+      if (recent.length > 5) {
+        recent = recent.slice(-5);
+      }
+      
+      localStorage.setItem('tricklist_recent_accounts', JSON.stringify(recent));
+    } catch(e) {}
+  }
+  function clearUser(){ localStorage.removeItem(USER_KEY); }
+
+  function getLearned(){
+    try { return JSON.parse(localStorage.getItem(LEARNED_KEY) || '[]'); } catch(e){ return [] }
+  }
+  function saveLearned(list){ localStorage.setItem(LEARNED_KEY, JSON.stringify(list)); }
+
+  // Random trick history tracking (per session)
+  function getRandomHistory(){
+    try { return JSON.parse(sessionStorage.getItem(RANDOM_HISTORY_KEY) || '[]'); } catch(e){ return [] }
+  }
+  function saveRandomHistory(history){ sessionStorage.setItem(RANDOM_HISTORY_KEY, JSON.stringify(history)); }
+  function addToRandomHistory(trickId){ 
+    const history = getRandomHistory();
+    if (!history.includes(trickId)) {
+      history.push(trickId);
+      saveRandomHistory(history);
+    }
+  }
+  function clearRandomHistory(){ sessionStorage.removeItem(RANDOM_HISTORY_KEY); }
+
+  function getScores(){
+    try { return JSON.parse(localStorage.getItem(SCORES_KEY) || '{}'); } catch(e){ return {} }
+  }
+  function saveScores(scores){ localStorage.setItem(SCORES_KEY, JSON.stringify(scores)); }
+
+  function getTotalScore(){
+    const learned = getLearned();
+    const scores = getScores();
     return learned.reduce((sum, id) => sum + (scores[id] || 0), 0);
   }
 
@@ -250,13 +308,14 @@
     return popup;
   }
 
-  // Debug panel completely disabled
+  // Simple on-page logger for debugging inside Simple Browser
   function ensureDebugPanel(){
+    // Debug panel completely disabled
     return null;
   }
 
   function debug(msg){
-    // Disabled
+    // Debug completely disabled
   }
 
   function positionPopup(anchor, popup){
@@ -675,7 +734,26 @@
         textNode.textContent = user ? 'Logout' : 'Login';
       }
       
-      // Just intercept clicks - don't modify DOM to avoid React conflicts
+      // Intercept clicks on both button and parent link
+      const parentLink = existingBtn.closest('a');
+      if (parentLink && !parentLink.__fakeAuthAttached) {
+        parentLink.__fakeAuthAttached = true;
+        parentLink.addEventListener('click', function(e){ 
+          e.preventDefault(); 
+          e.stopPropagation(); 
+          const user = getUser();
+          if (user) {
+            clearUser();
+            debug('Signed out');
+            // Reload the page
+            window.location.reload();
+          } else {
+            openAuthModal();
+          }
+          return false; 
+        }, true); // Use capture phase to catch before React
+      }
+      
       if (!existingBtn.__fakeAuthAttached) {
         existingBtn.__fakeAuthAttached = true;
         existingBtn.addEventListener('click', function(e){ 
@@ -743,11 +821,41 @@
       });
       try{ mo.observe(document.documentElement || document.body, { childList:true, subtree:true }); }catch(e){}
       
-      // Poll to keep things clean
+      // AGGRESSIVE DEBUG DIV REMOVAL - Remove "Owner check" divs
+      function removeOwnerCheckDiv() {
+        try {
+          const allDivs = document.querySelectorAll('div');
+          allDivs.forEach(div => {
+            const text = div.textContent || '';
+            if (text.includes('Owner check')) {
+              if (div.parentNode) {
+                div.parentNode.removeChild(div);
+              }
+            }
+          });
+        } catch(e) {}
+      }
+      
+      // Run immediately
+      removeOwnerCheckDiv();
+      
+      // Use MutationObserver to catch new divs being added
+      const debugObserver = new MutationObserver(() => {
+        removeOwnerCheckDiv();
+      });
+      try {
+        debugObserver.observe(document.documentElement || document.body, { 
+          childList: true, 
+          subtree: true 
+        });
+      } catch(e) {}
+      
+      // Also poll as backup
       setInterval(()=>{ 
         removeFloatingBtn(); 
         const debugPanel = document.getElementById('fake-auth-debug');
         if (debugPanel) debugPanel.remove();
+        removeOwnerCheckDiv();
         updateLoginButtonText();
       }, 50);
     }catch(e){}
@@ -1218,7 +1326,7 @@
         }
       });
       
-      createStyle(); removeFloatingBtn(); renderButton(); replaceExistingSignIns(); watchAndRemoveFloating(); observeLoginButton(); hideNonOwnerTrickControls(); 
+      createStyle(); removeFloatingBtn(); renderButton(); replaceExistingSignIns(); watchAndRemoveFloating(); observeLoginButton(); addAdminLink(); addTrickManagementButtons(); hideNonOwnerTrickControls(); 
       
       // Continuously remove debug elements and check admin link
       setInterval(() => {
@@ -1230,12 +1338,8 @@
           
           const allDivs = document.querySelectorAll('div');
           allDivs.forEach(div => {
-            const text = (div.textContent || '').toLowerCase();
-            if (text.includes('owner check') || 
-                text.includes('debug') || 
-                text.includes('logged in as') ||
-                text.includes('email:') && text.length < 100) {
-              if (div.parentNode && !div.querySelector('input') && !div.querySelector('button')) {
+            if ((div.textContent || '').includes('Owner check')) {
+              if (div.parentNode) {
                 div.parentNode.removeChild(div);
               }
             }
@@ -1321,8 +1425,77 @@
     } catch(e) {}
   }
   
-  // Admin link disabled for public build
-  function addAdminLink(){ return; }
+  function addAdminLink(){
+    try {
+      const user = getUser();
+      if (!user || !user.email) return;
+      
+      const userEmailLower = user.email.toLowerCase().trim();
+      const ownerEmailLower = (OWNER_EMAIL || '').toLowerCase().trim();
+      
+      // Only create link if user IS the owner
+      if (userEmailLower !== ownerEmailLower) return;
+      
+      // Check if link already exists
+      if (document.getElementById('fake-auth-admin-link')) return;
+      
+      // Wait for header to be ready
+      setTimeout(() => {
+        // Double-check ownership
+        const currentUser = getUser();
+        if (!currentUser || !currentUser.email) return;
+        const currentUserEmailLower = currentUser.email.toLowerCase().trim();
+        if (currentUserEmailLower !== ownerEmailLower) return;
+        
+        // Find header
+        const header = document.querySelector('header, nav, [role="navigation"], [class*="header"], [class*="nav"]');
+        if (!header) return;
+        
+        // Check again if link exists
+        if (document.getElementById('fake-auth-admin-link')) return;
+        
+        // Create the link
+        const adminLink = document.createElement('a');
+        adminLink.id = 'fake-auth-admin-link';
+        adminLink.href = '/feedback-dashboard.html';
+        adminLink.style.cssText = `
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 14px;
+          border: 1px solid rgba(34, 197, 94, 0.5);
+          border-radius: 6px;
+          color: #86efac;
+          font-size: 13px;
+          font-weight: 500;
+          text-decoration: none;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          background: rgba(34, 197, 94, 0.1);
+          margin-right: 12px;
+        `;
+        adminLink.textContent = 'Feedback Admin';
+        
+        adminLink.onmouseover = () => {
+          adminLink.style.background = 'rgba(34, 197, 94, 0.2)';
+          adminLink.style.borderColor = 'rgba(34, 197, 94, 0.8)';
+        };
+        adminLink.onmouseout = () => {
+          adminLink.style.background = 'rgba(34, 197, 94, 0.1)';
+          adminLink.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+        };
+        
+        // Insert before login button if possible
+        const loginBtn = header.querySelector('a[href*="/api/login"], [data-testid*="login"]') || 
+                        Array.from(header.querySelectorAll('button, a')).find(el => el.textContent && el.textContent.toLowerCase().includes('login'));
+        if (loginBtn && loginBtn.parentNode) {
+          loginBtn.parentNode.insertBefore(adminLink, loginBtn);
+        } else {
+          header.appendChild(adminLink);
+        }
+      }, 500);
+    } catch(e) { }
+  }
   
   function addTrickManagementButtons(){
     try {
@@ -1409,42 +1582,13 @@
       }, 500);
     } catch(e) { }
   }
-          text-decoration: none;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          background: rgba(34, 197, 94, 0.1);
-          margin-right: 12px;
-        `;
-        adminLink.textContent = 'Feedback Admin';
-        
-        adminLink.onmouseover = () => {
-          adminLink.style.background = 'rgba(34, 197, 94, 0.2)';
-          adminLink.style.borderColor = 'rgba(34, 197, 94, 0.8)';
-        };
-        adminLink.onmouseout = () => {
-          adminLink.style.background = 'rgba(34, 197, 94, 0.1)';
-          adminLink.style.borderColor = 'rgba(34, 197, 94, 0.5)';
-        };
-        
-        // Insert before login button if possible
-        const loginBtn = header.querySelector('a[href*="/api/login"], [data-testid*="login"]') || 
-                        Array.from(header.querySelectorAll('button, a')).find(el => el.textContent && el.textContent.toLowerCase().includes('login'));
-        if (loginBtn) {
-          loginBtn.parentNode.insertBefore(adminLink, loginBtn);
-        } else {
-          buttonContainer.appendChild(adminLink);
-        }
-      }, 500);
-    } catch(e) {
-      // On any error, remove the link to be safe
-      if (existingLink && existingLink.parentNode) {
-        existingLink.parentNode.removeChild(existingLink);
-      }
-    }
-  }
   
   // Refresh admin link when user changes
-  // No admin link in public build
+  window.addEventListener('fake-auth-changed', () => {
+    const oldLink = document.getElementById('fake-auth-admin-link');
+    if (oldLink) oldLink.remove();
+    addAdminLink();
+  });
   if (document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', initUI);
   } else { initUI(); }
